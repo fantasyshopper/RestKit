@@ -33,7 +33,6 @@ static NSUInteger RKPaginatorDefaultPerPage = 25;
 @interface RKPaginator ()
 @property (nonatomic, copy) NSURLRequest *request;
 @property (nonatomic, strong) Class HTTPOperationClass;
-@property (nonatomic, strong) RKObjectRequestOperation *objectRequestOperation;
 @property (nonatomic, copy) NSArray *responseDescriptors;
 @property (nonatomic, assign, readwrite) NSUInteger currentPage;
 @property (nonatomic, assign, readwrite) NSUInteger offset;
@@ -49,7 +48,7 @@ static NSUInteger RKPaginatorDefaultPerPage = 25;
 @property (nonatomic, assign, readwrite) NSNumber *pageCountNumber;
 @property (nonatomic, assign, readwrite) NSNumber *objectCountNumber;
 
-@property (nonatomic, copy) void (^successBlock)(RKPaginator *paginator, NSArray *objects, NSUInteger page);
+@property (nonatomic, copy) void (^successBlock)(RKPaginator *paginator, RKMappingResult *objects, NSUInteger page);
 @property (nonatomic, copy) void (^failureBlock)(RKPaginator *paginator, NSError *error);
 @end
 
@@ -103,7 +102,7 @@ static NSUInteger RKPaginatorDefaultPerPage = 25;
     _HTTPOperationClass = operationClass;
 }
 
-- (void)setCompletionBlockWithSuccess:(void (^)(RKPaginator *paginator, NSArray *objects, NSUInteger page))success
+- (void)setCompletionBlockWithSuccess:(void (^)(RKPaginator *paginator, RKMappingResult *objects, NSUInteger page))success
                               failure:(void (^)(RKPaginator *paginator, NSError *error))failure
 {
     self.successBlock = success;
@@ -173,7 +172,8 @@ static NSUInteger RKPaginatorDefaultPerPage = 25;
 - (void)loadPage:(NSUInteger)pageNumber
 {
     NSAssert(self.responseDescriptors, @"Cannot perform a load with nil response descriptors.");
-    NSAssert(! self.objectRequestOperation, @"Cannot perform a load while one is already in progress.");
+    if (self.objectRequestOperation) return;
+    
     self.currentPage = pageNumber;
     
     NSMutableURLRequest *mutableRequest = [self.request mutableCopy];
@@ -217,7 +217,7 @@ static NSUInteger RKPaginatorDefaultPerPage = 25;
     }];
     [self.objectRequestOperation setCompletionBlockWithSuccess:^(RKObjectRequestOperation *operation, RKMappingResult *mappingResult) {
         if (self.successBlock) {
-            self.successBlock(self, [mappingResult array], self.currentPage);
+            self.successBlock(self, mappingResult, self.currentPage);
         }
     } failure:^(RKObjectRequestOperation *operation, NSError *error) {
         if (self.failureBlock) {
